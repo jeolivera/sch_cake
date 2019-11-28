@@ -136,7 +136,6 @@ struct cake_flow {
 	struct sk_buff	  *tail;
 	struct list_head  flowchain;
 	s32		  deficit;
-	u32		  dropped;
 	struct cobalt_vars cvars;
 	u16		  srchost; /* index into cake_host table */
 	u16		  dsthost;
@@ -324,8 +323,8 @@ static const u8 precedence[] = {
 };
 
 static const u8 diffserv8[] = {
-	2, 5, 1, 2, 4, 2, 2, 2,
-	0, 2, 1, 2, 1, 2, 1, 2,
+	2, 0, 1, 2, 4, 2, 2, 2,
+	1, 2, 1, 2, 1, 2, 1, 2,
 	5, 2, 4, 2, 4, 2, 4, 2,
 	3, 2, 3, 2, 3, 2, 3, 2,
 	6, 2, 3, 2, 3, 2, 3, 2,
@@ -335,7 +334,7 @@ static const u8 diffserv8[] = {
 };
 
 static const u8 diffserv4[] = {
-	0, 2, 0, 0, 2, 0, 0, 0,
+	0, 1, 0, 0, 2, 0, 0, 0,
 	1, 0, 0, 0, 0, 0, 0, 0,
 	2, 0, 2, 0, 2, 0, 2, 0,
 	2, 0, 2, 0, 2, 0, 2, 0,
@@ -346,7 +345,7 @@ static const u8 diffserv4[] = {
 };
 
 static const u8 diffserv3[] = {
-	0, 0, 0, 0, 2, 0, 0, 0,
+	0, 1, 0, 0, 2, 0, 0, 0,
 	1, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -1601,7 +1600,6 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 	sch->qstats.backlog -= len;
 	qdisc_tree_reduce_backlog(sch, 1, len);
 
-	flow->dropped++;
 	b->tin_dropped++;
 	sch->qstats.drops++;
 
@@ -2231,7 +2229,6 @@ retry:
 			flow->deficit -= len;
 			b->tin_deficit -= len;
 		}
-		flow->dropped++;
 		b->tin_dropped++;
 		qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(skb));
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
@@ -3137,7 +3134,6 @@ static int cake_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 			cake_maybe_unlock(sch);
 		}
 		qs.backlog = b->backlogs[idx % CAKE_QUEUES];
-		qs.drops = flow->dropped;
 	}
 	if (gnet_stats_copy_queue(d, NULL, &qs, qs.qlen) < 0)
 		return -1;
